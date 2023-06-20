@@ -30,10 +30,10 @@ export class RecordSignerStack extends Stack {
   }
 }
 
-function createRecordsSigningResources(scope: Construct, 
-  batchQueue: sqs.Queue, userRecordsTable: dynamodb.Table, 
+function createRecordsSigningResources(scope: Construct,
+  batchQueue: sqs.Queue, userRecordsTable: dynamodb.Table,
   privateKeysTable: dynamodb.Table): RecordsSigningResources {
-  
+
   // Table to store public keys
   const recordsPublicKeyTable = new dynamodb.Table(scope, 'RecordsPublicKey', {
     tableName: 'records-public-keys',
@@ -71,7 +71,7 @@ function createRecordsSigningResources(scope: Construct,
 }
 
 function createRecordsBatchCreationResources(scope: Construct): RecordsBatchCreationResources {
-  
+
   // Table to store user records
   const userRecordsTable = new dynamodb.Table(scope, 'UserRecords', {
     tableName: 'user-records',
