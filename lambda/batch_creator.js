@@ -1,9 +1,10 @@
 const AWS = require('aws-sdk');
+const crypto = require('crypto');
+const sqs = new AWS.SQS();
+const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async function (event) {
     console.log("request:", JSON.stringify(event, undefined, 2));
-    const sqs = new AWS.SQS();
-    const dynamodb = new AWS.DynamoDB.DocumentClient();
 
     const userRecordsTable = process.env.USER_RECORDS_TABLE_NAME;
     const privateKeysTable = process.env.PRIVATE_KEYS_TABLE_NAME;
@@ -41,8 +42,10 @@ exports.handler = async function (event) {
             // Create SQS Params
             const recordIds = userRecords.map(record => record.id);
             const privateKey = privateKeys[batchInd % privateKeys.length].data;
+            const batchId = crypto.randomUUID();
             const sqsParams = {
                 MessageBody: JSON.stringify({
+                    batchId: batchId,
                     recordIds: recordIds,
                     privateKey: privateKey,
                 }),
@@ -51,7 +54,7 @@ exports.handler = async function (event) {
 
             // Send SQS Message
             await sqs.sendMessage(sqsParams).promise();
-            console.log('Batch #' + batchInd + ' sent to SQS with params:' + JSON.stringify(sqsParams));
+            console.log('Batch #' + batchInd + ' sent to SQS with batchId:' + batchId);
             batchInd++;
 
             // Check if there are more records to retrieve
