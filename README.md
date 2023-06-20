@@ -1,6 +1,10 @@
 # Welcome to Record Signer
 This repository creates resources to sign the user records using private keys.
 
+## Design
+
+![Design](design/recordSigning.png)
+
 ## Steps to run a project
 
 1. Setup a AWS CLI by following: https://cdkworkshop.com/15-prerequisites/200-account.html#configure-your-credentials
