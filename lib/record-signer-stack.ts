@@ -8,6 +8,7 @@ import { Construct } from 'constructs';
 
 type RecordsBatchCreationResources = {
   userRecordsTable: dynamodb.Table,
+  privateKeysTable: dynamodb.Table,
   batchQueue: sqs.Queue,
   batchCreatorLambda: lambda.Function
 };
@@ -24,12 +25,14 @@ export class RecordSignerStack extends Stack {
     const recordsBatchCreationRes = createRecordsBatchCreationResources(this);
     const recordsSigningRes = createRecordsSigningResources(this,
       recordsBatchCreationRes.batchQueue,
-      recordsBatchCreationRes.userRecordsTable)
+      recordsBatchCreationRes.userRecordsTable,
+      recordsBatchCreationRes.privateKeysTable)
   }
 }
 
 function createRecordsSigningResources(scope: Construct, 
-  batchQueue: sqs.Queue, userRecordsTable: dynamodb.Table): RecordsSigningResources {
+  batchQueue: sqs.Queue, userRecordsTable: dynamodb.Table, 
+  privateKeysTable: dynamodb.Table): RecordsSigningResources {
   
   // Table to store public keys
   const recordsPublicKeyTable = new dynamodb.Table(scope, 'RecordsPublicKey', {
@@ -50,10 +53,12 @@ function createRecordsSigningResources(scope: Construct,
       USER_RECORDS_TABLE_NAME: userRecordsTable.tableName,
       RECORDS_PUBLIC_KEY_TABLE_NAME: recordsPublicKeyTable.tableName,
     },
+    timeout: Duration.seconds(600),
   });
 
   // Permissions
   userRecordsTable.grantReadData(recordsSignerLambda);
+  privateKeysTable.grantReadData(recordsSignerLambda);
   recordsPublicKeyTable.grantReadWriteData(recordsSignerLambda);
 
   // Trigger lambda on SQS Event
@@ -77,6 +82,16 @@ function createRecordsBatchCreationResources(scope: Construct): RecordsBatchCrea
     removalPolicy: cdk.RemovalPolicy.DESTROY,
   });
 
+  // Table to store private keys
+  const privateKeysTable = new dynamodb.Table(scope, 'PrivateKeys', {
+    tableName: 'private-key',
+    partitionKey: {
+      name: 'id',
+      type: dynamodb.AttributeType.STRING,
+    },
+    removalPolicy: cdk.RemovalPolicy.DESTROY,
+  });
+
   // Queue to trigger record batches
   const batchQueue = new sqs.Queue(scope, 'RecordSignerBatchQueue', {
     visibilityTimeout: Duration.seconds(300)
@@ -89,16 +104,20 @@ function createRecordsBatchCreationResources(scope: Construct): RecordsBatchCrea
     handler: 'batch_creator.handler',
     environment: {
       USER_RECORDS_TABLE_NAME: userRecordsTable.tableName,
+      PRIVATE_KEYS_TABLE_NAME: privateKeysTable.tableName,
       BATCH_QUEUE_URL: batchQueue.queueUrl,
     },
+    timeout: Duration.seconds(600),
   });
 
   // Permissions
   userRecordsTable.grantReadData(batchCreatorLambda);
   batchQueue.grantSendMessages(batchCreatorLambda);
+  privateKeysTable.grantReadData(batchCreatorLambda);
 
   return {
     "userRecordsTable": userRecordsTable,
+    "privateKeysTable": privateKeysTable,
     "batchCreatorLambda": batchCreatorLambda,
     "batchQueue": batchQueue,
   }
